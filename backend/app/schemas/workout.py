@@ -52,3 +52,22 @@ class WorkoutPlanResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class WorkoutPlanUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class WorkoutExerciseUpdate(BaseModel):
+    exercise_name: str | None = None
+    sets: int | None = None
+    reps: int | None = None
+    duration: int | None = None
+    rest_seconds: int | None = None
+    notes: str | None = None
+    order_index: int | None = None
+
+class WorkoutDayUpdate(BaseModel):
+    day_of_week: int | None = None
+    title: str | None = None

@@ -6,7 +6,12 @@ from app.api.dependencies import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.models.workout import WorkoutPlan, WorkoutDay, WorkoutExercise
-from app.schemas.workout import WorkoutPlanCreate, WorkoutPlanResponse
+from app.schemas.workout import (
+    WorkoutPlanCreate,
+    WorkoutPlanResponse,
+    WorkoutPlanUpdate,
+    WorkoutExerciseUpdate,
+    WorkoutDayUpdate)
 
 router = APIRouter(
     prefix="/workouts",
@@ -100,3 +105,113 @@ def get_workout_plan(
         )
 
     return workout_plan
+
+@router.put(
+    "/{workout_id}",
+    response_model=WorkoutPlanResponse,
+)
+def update_workout_plan(
+    workout_id: int,
+    workout_data: WorkoutPlanUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workout_plan = (
+        db.query(WorkoutPlan)
+        .filter(
+            WorkoutPlan.id == workout_id,
+            WorkoutPlan.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not workout_plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout plan not found",
+        )
+
+    update_data = workout_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(workout_plan, field, value)
+
+    db.commit()
+    db.refresh(workout_plan)
+
+    return workout_plan
+
+@router.put(
+    "/{workout_id}/exercises/{exercise_id}",
+)
+def update_workout_exercise(
+    workout_id: int,
+    exercise_id: int,
+    exercise_data: WorkoutExerciseUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    exercise = (
+        db.query(WorkoutExercise)
+        .join(WorkoutDay)
+        .join(WorkoutPlan)
+        .filter(
+            WorkoutExercise.id == exercise_id,
+            WorkoutPlan.id == workout_id,
+            WorkoutPlan.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exercise not found",
+        )
+
+    update_data = exercise_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(exercise, field, value)
+
+    db.commit()
+    db.refresh(exercise)
+
+    return exercise
+
+@router.put(
+    "/{workout_id}/days/{day_id}",
+)
+def update_workout_day(
+    workout_id: int,
+    day_id: int,
+    day_data: WorkoutDayUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workout_day = (
+        db.query(WorkoutDay)
+        .join(WorkoutPlan)
+        .filter(
+            WorkoutDay.id == day_id,
+            WorkoutPlan.id == workout_id,
+            WorkoutPlan.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not workout_day:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout day not found",
+        )
+
+    update_data = day_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(workout_day, field, value)
+
+    db.commit()
+    db.refresh(workout_day)
+
+    return workout_day

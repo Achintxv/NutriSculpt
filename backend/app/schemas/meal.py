@@ -37,3 +37,16 @@ class MealPlanResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+class MealPlanUpdate(BaseModel):
+    name: str | None = None
+    calorie_target: int | None = None
+
+class MealUpdate(BaseModel):
+    meal_type: str | None = None
+    name: str | None = None
+    calories: int | None = None
+    protein: float | None = None
+    carbs: float | None = None
+    fat: float | None = None
+    notes: str | None = None
