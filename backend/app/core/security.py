@@ -1,13 +1,13 @@
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import jwt
 
 from app.core.config import settings
 
-outh2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+outh2_scheme = HTTPBearer()
 
 password_hash = PasswordHash.recommended()
 
@@ -35,7 +35,8 @@ def create_access_token(user_id: int)-> str:
 
     return token
 
-def get_current_user_id(token:str=Depends(outh2_scheme))->int:
+def get_current_user_id(credentials:HTTPAuthorizationCredentials=Depends(outh2_scheme))->int:
+    token = credentials.credentials
     try:
         payload = jwt.decode(
             token,

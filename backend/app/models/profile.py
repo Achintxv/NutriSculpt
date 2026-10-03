@@ -39,6 +39,26 @@ class Profile(Base):
         nullable=True
     )
 
+    fitness_experience: Mapped[str | None] = mapped_column(
+    String(50),
+    nullable=True,
+    )
+
+    workout_days_per_week: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    dietary_preference: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    allergies: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
