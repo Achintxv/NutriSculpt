@@ -1,26 +1,93 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
+@tailwind utilities;
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ns-yellow: #ffdf00;
+  --ns-white: #ffffff;
+  --ns-black: #111111;
+  --ns-mint: #b8f2cf;
+  --ns-gray: #f4f4f0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--ns-gray);
+  color: var(--ns-black);
+  font-family: "Space Grotesk", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--ns-yellow);
+  color: var(--ns-black);
+}
+
+/* Reusable neo-brutalist styles */
+.ns-card {
+  border: 2px solid var(--ns-black);
+  border-radius: 12px;
+  background: var(--ns-white);
+  box-shadow: 5px 5px 0 var(--ns-black);
+}
+
+.ns-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px solid var(--ns-black);
+  border-radius: 8px;
+  background: var(--ns-yellow);
+  color: var(--ns-black);
+  padding: 10px 16px;
+  font-weight: 700;
+  box-shadow: 3px 3px 0 var(--ns-black);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.ns-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ns-black);
+}
+
+.ns-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ns-muted {
+  color: #666660;
+}
+
+.ns-input {
+  width: 100%;
+  border: 2px solid var(--ns-black);
+  border-radius: 8px;
+  background: var(--ns-white);
+  padding: 10px 12px;
+  outline: none;
+}
+
+.ns-input:focus {
+  box-shadow: 3px 3px 0 var(--ns-yellow);
 }
