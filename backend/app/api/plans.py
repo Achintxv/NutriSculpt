@@ -5,10 +5,12 @@ from app.api.dependencies import get_current_user
 from app.core.database import get_db
 from app.models.profile import Profile
 from app.models.user import User
-from app.services.ai_service import generate_fitness_plan
-from app.services.plan_service import save_fitness_plan
 from app.models.workout import WorkoutPlan
 from app.models.meal import MealPlan
+from app.services.ai_service import generate_fitness_plan
+from app.services.plan_service import save_fitness_plan
+from app.schemas.workout import WorkoutPlanResponse
+from app.schemas.meal import MealPlanResponse
 
 router = APIRouter(
     prefix="/plans",
@@ -43,7 +45,8 @@ def generate_plan(
         "meal_plan_id": meal_plan.id,
     }
 
-@router.get("/workouts")
+@router.get("/workouts",
+            response_model=list[WorkoutPlanResponse])
 def get_my_workout_plans(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -56,7 +59,8 @@ def get_my_workout_plans(
     return workout_plans
 
 
-@router.get("/meals")
+@router.get("/meals",
+            response_model=list[MealPlanResponse])
 def get_my_meal_plans(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

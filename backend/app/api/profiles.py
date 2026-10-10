@@ -68,7 +68,7 @@ def get_my_profile(
     return profile
 
 @router.post("/me", response_model=ProfileResponse)
-def update_my_profile(
+def save_my_profile(
     profile_data: ProfileUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -78,10 +78,8 @@ def update_my_profile(
     )
 
     if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found"
-        )
+        profile = Profile(user_id=current_user.id)
+        db.add(profile)
 
     update_data = profile_data.model_dump(exclude_unset=True)
 

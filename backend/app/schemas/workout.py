@@ -24,16 +24,25 @@ class WorkoutPlanCreate(BaseModel):
     days: list[WorkoutDayCreate]
     
 
-class WorkoutExerciseResponse(WorkoutExerciseCreate):
+class WorkoutExerciseResponse(BaseModel):
     id: int
+    exercise_name: str
+    sets: int | None = None
+    reps: int | None = None
+    duration: int | None = None
+    rest_seconds: int | None = None
+    notes: str | None = None
+    order_index: int
 
     model_config = {
         "from_attributes": True
     }
 
 
-class WorkoutDayResponse(WorkoutDayCreate):
+class WorkoutDayResponse(BaseModel):
     id: int
+    day_of_week: int
+    title: str
     exercises: list[WorkoutExerciseResponse]
 
     model_config = {
