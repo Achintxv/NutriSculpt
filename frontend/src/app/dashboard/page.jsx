@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
-  CalendarDays,
   Dumbbell,
   Flame,
   LogOut,
@@ -15,6 +14,8 @@ import {
   Target,
   Utensils,
 } from "lucide-react";
+import WorkoutSection from "./WorkoutSection";
+import MealSection from "./MealSection";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -26,8 +27,10 @@ export default function Dashboard() {
   const [mealPlans, setMealPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [selectedWorkoutPlanId, setSelectedWorkoutPlanId] = useState(null);
+  const [selectedMealPlanId, setSelectedMealPlanId] = useState(null);
 
-  const loadPlans = useCallback(async () => {
+  const loadPlans = useCallback(async (selectLatest = false) => {
     const [workouts, meals] = await Promise.all([
       apiFetch("/plans/workouts"),
       apiFetch("/plans/meals"),
@@ -35,6 +38,26 @@ export default function Dashboard() {
 
     setWorkoutPlans(workouts);
     setMealPlans(meals);
+
+    setSelectedWorkoutPlanId((currentId) => {
+      const exists = workouts.some(
+        (plan) => String(plan.id) === String(currentId),
+      );
+
+      if (!selectLatest && exists) return currentId;
+
+      return workouts.length ? workouts[workouts.length - 1].id : null;
+    });
+
+    setSelectedMealPlanId((currentId) => {
+      const exists = meals.some(
+        (plan) => String(plan.id) === String(currentId),
+      );
+
+      if (!selectLatest && exists) return currentId;
+
+      return meals.length ? meals[meals.length - 1].id : null;
+    });
   }, []);
 
   useEffect(() => {
@@ -43,8 +66,18 @@ export default function Dashboard() {
         const userData = await apiFetch("/auth/me");
         setUser(userData);
 
-        const profileData = await apiFetch("/profiles/me");
-        setProfile(profileData);
+        try {
+          const profileData = await apiFetch("/profiles/me");
+          setProfile(profileData);
+        } catch (profileErr) {
+          // If the profile doesn't exist yet, send them to the profile page to set it up!
+          const msg = profileErr.message.toLowerCase();
+          if (msg.includes("profile") || msg.includes("not found") || msg.includes("404")) {
+            router.push("/profile");
+            return;
+          }
+          throw profileErr; // Re-throw any other critical auth errors
+        }
 
         await loadPlans();
       } catch (error) {
@@ -68,7 +101,7 @@ export default function Dashboard() {
         method: "POST",
       });
 
-      await loadPlans();
+      await loadPlans(true);
       setMessage("Your new fitness plan is ready!");
     } catch (error) {
       setMessage(error.message || "Couldn't generate your plan. Try again.");
@@ -96,19 +129,19 @@ export default function Dashboard() {
   }
 
   const latestWorkout =
-    workoutPlans.length > 0
-      ? workoutPlans[workoutPlans.length - 1]
-      : null;
+    workoutPlans.find(
+      (plan) => String(plan.id) === String(selectedWorkoutPlanId),
+    ) ||
+    (workoutPlans.length > 0 ? workoutPlans[workoutPlans.length - 1] : null);
 
   const latestMealPlan =
-    mealPlans.length > 0
-      ? mealPlans[mealPlans.length - 1]
-      : null;
+    mealPlans.find((plan) => String(plan.id) === String(selectedMealPlanId)) ||
+    (mealPlans.length > 0 ? mealPlans[mealPlans.length - 1] : null);
 
   const totalExercises =
     latestWorkout?.days?.reduce(
       (total, day) => total + (day.exercises?.length || 0),
-      0
+      0,
     ) || 0;
 
   return (
@@ -204,15 +237,15 @@ export default function Dashboard() {
                 </span>
               </h2>
               <p className="mt-3 text-sm text-gray-600 sm:text-base">
-                Welcome back, {user?.email?.split("@")[0] || "athlete"}.
-                Ready to make progress?
+                Welcome back, {user?.email?.split("@")[0] || "athlete"}. Ready
+                to make progress?
               </p>
             </div>
 
             <button
               onClick={handleGeneratePlan}
               disabled={generating}
-              className="ns-button w-full shrink-0 sm:w-auto"
+              className="ns-button w-full shrink-0 sm:w-auto flex items-center justify-center gap-2"
             >
               <Sparkles size={18} />
               {generating ? "Generating..." : "Generate My Plan"}
@@ -300,269 +333,87 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Workout plan */}
-          <section id="workouts" className="mt-10 scroll-mt-6">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-gray-500">
-                  TRAINING
-                </p>
-                <h3 className="mt-1 text-2xl font-extrabold sm:text-3xl">
-                  Your workout plan
-                </h3>
-              </div>
-              {latestWorkout && (
-                <div className="flex items-center gap-2 rounded-lg border-2 border-black bg-white px-3 py-2 text-sm font-bold">
-                  <CalendarDays size={17} />
-                  {latestWorkout.days?.length || 0} days
-                </div>
+          {/* Workout plan section */}
+
+          {/* Workout plan selector */}
+          <div className="mt-10 rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0_#111]">
+            <label
+              htmlFor="workout-plan-select"
+              className="mb-2 block text-sm font-extrabold uppercase tracking-wider"
+            >
+              <Dumbbell size={17} className="mr-2 inline" />
+              Choose your workout plan
+            </label>
+
+            <select
+              id="workout-plan-select"
+              value={selectedWorkoutPlanId ?? ""}
+              onChange={(e) => setSelectedWorkoutPlanId(e.target.value)}
+              disabled={workoutPlans.length === 0}
+              className="ns-input w-full"
+            >
+              {workoutPlans.length === 0 ? (
+                <option value="">No workout plans available</option>
+              ) : (
+                workoutPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                    {plan.generated_by_ai ? " (AI)" : " (Manual)"}
+                  </option>
+                ))
               )}
-            </div>
+            </select>
 
-            {latestWorkout ? (
-              <div className="ns-card overflow-hidden">
-                <div className="border-b-2 border-black bg-[#ffdf00] p-5 sm:p-7">
-                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                    <div>
-                      <p className="text-xs font-extrabold uppercase tracking-widest">
-                        YOUR TRAINING ROUTINE
-                      </p>
-                      <h4 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-                        {latestWorkout.name}
-                      </h4>
-                      <p className="mt-2 max-w-2xl text-sm sm:text-base">
-                        {latestWorkout.description ||
-                          "Your personalized workout routine."}
-                      </p>
-                    </div>
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-black bg-white">
-                      <Dumbbell size={25} />
-                    </div>
-                  </div>
+            <p className="mt-2 text-xs text-gray-500">
+              {workoutPlans.length} saved workout plan(s)
+            </p>
+          </div>
 
-                  <div className="mt-5 flex flex-wrap gap-3 text-sm font-bold">
-                    <span className="rounded-lg border-2 border-black bg-white px-3 py-2">
-                      {latestWorkout.days?.length || 0} training days
-                    </span>
-                    <span className="rounded-lg border-2 border-black bg-white px-3 py-2">
-                      {totalExercises} exercises
-                    </span>
-                  </div>
-                </div>
+          {/* Workout plan section */}
+          <WorkoutSection
+            latestWorkout={latestWorkout}
+            totalExercises={totalExercises}
+            handleGeneratePlan={handleGeneratePlan}
+            generating={generating}
+            loadPlans={loadPlans}
+          />
 
-                <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-2">
-                  {latestWorkout.days?.length ? (
-                    latestWorkout.days.map((day) => (
-                      <article
-                        key={day.id}
-                        className="rounded-xl border-2 border-black bg-white p-4"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-[#b8f2cf] font-extrabold">
-                            {day.day_of_week}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                              DAY {day.day_of_week}
-                            </p>
-                            <h5 className="text-lg font-extrabold">
-                              {day.title}
-                            </h5>
-                          </div>
-                        </div>
+          {/* Meal plan selector */}
+          <div className="mt-10 rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0_#111]">
+            <label
+              htmlFor="meal-plan-select"
+              className="mb-2 block text-sm font-extrabold uppercase tracking-wider"
+            >
+              <Salad size={17} className="mr-2 inline" />
+              Choose your meal plan
+            </label>
 
-                        <div className="mt-4 space-y-3">
-                          {day.exercises?.length ? (
-                            day.exercises.map((exercise) => (
-                              <div
-                                key={exercise.id}
-                                className="flex items-start gap-3 rounded-lg bg-[#f4f4f0] p-3"
-                              >
-                                <div className="mt-0.5">
-                                  <Dumbbell size={17} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-bold">
-                                    {exercise.exercise_name}
-                                  </p>
-                                  <p className="mt-1 text-sm text-gray-600">
-                                    {exercise.sets != null &&
-                                      `${exercise.sets} sets`}
-                                    {exercise.reps != null &&
-                                      ` × ${exercise.reps} reps`}
-                                    {exercise.duration != null &&
-                                      ` · ${exercise.duration} min`}
-                                  </p>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              No exercises added yet.
-                            </p>
-                          )}
-                        </div>
-                      </article>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No workout days have been added to this plan yet.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="ns-card flex flex-col items-center px-6 py-12 text-center">
-                <div className="rounded-xl border-2 border-black bg-[#ffdf00] p-4">
-                  <Dumbbell size={30} />
-                </div>
-                <h4 className="mt-5 text-xl font-extrabold">
-                  Your next chapter starts here
-                </h4>
-                <p className="mt-2 max-w-md text-sm text-gray-600">
-                  Generate your personalized plan to get a workout routine
-                  tailored to your fitness goals.
-                </p>
-                <button
-                  onClick={handleGeneratePlan}
-                  disabled={generating}
-                  className="ns-button mt-5"
-                >
-                  <Sparkles size={17} />
-                  {generating ? "Generating..." : "Create my first plan"}
-                </button>
-              </div>
-            )}
-          </section>
+            <select
+              id="meal-plan-select"
+              value={selectedMealPlanId ?? ""}
+              onChange={(e) => setSelectedMealPlanId(e.target.value)}
+              disabled={mealPlans.length === 0}
+              className="ns-input w-full"
+            >
+              {mealPlans.length === 0 ? (
+                <option value="">No meal plans available</option>
+              ) : (
+                mealPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                    {plan.generated_by_ai ? " (AI)" : " (Manual)"}
+                  </option>
+                ))
+              )}
+            </select>
 
-          {/* Nutrition plan */}
-          <section id="nutrition" className="mt-10 scroll-mt-6">
-            <div className="mb-5">
-              <p className="text-sm font-bold uppercase tracking-wider text-gray-500">
-                FUEL YOUR BODY
-              </p>
-              <h3 className="mt-1 text-2xl font-extrabold sm:text-3xl">
-                Nutrition & meals
-              </h3>
-            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              {mealPlans.length} saved meal plan(s)
+            </p>
+          </div>
 
-            {latestMealPlan ? (
-              <div className="ns-card overflow-hidden">
-                <div className="border-b-2 border-black bg-[#b8f2cf] p-5 sm:p-7">
-                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                    <div>
-                      <p className="text-xs font-extrabold uppercase tracking-widest">
-                        YOUR DAILY FUEL
-                      </p>
-                      <h4 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-                        {latestMealPlan.name}
-                      </h4>
-                      <p className="mt-2 text-sm">
-                        A nutrition plan to support your fitness journey.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 rounded-xl border-2 border-black bg-white p-4">
-                      <Flame size={25} />
-                      <div>
-                        <p className="text-2xl font-extrabold">
-                          {latestMealPlan.calorie_target ?? "—"}
-                        </p>
-                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          kcal / day
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
-                  {latestMealPlan.meals?.length ? (
-                    latestMealPlan.meals.map((meal) => (
-                      <article
-                        key={meal.id}
-                        className="flex flex-col rounded-xl border-2 border-black bg-white p-4 transition hover:-translate-y-1 hover:shadow-[4px_4px_0_#111]"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="rounded-lg border-2 border-black bg-[#ffdf00] px-3 py-1 text-xs font-extrabold uppercase">
-                            {meal.meal_type}
-                          </span>
-                          <Salad size={20} />
-                        </div>
-
-                        <h5 className="mt-4 text-xl font-extrabold">
-                          {meal.name}
-                        </h5>
-
-                        <div className="mt-4 grid grid-cols-2 gap-2">
-                          <div className="rounded-lg bg-[#f4f4f0] p-3">
-                            <p className="text-xs font-semibold text-gray-500">
-                              Calories
-                            </p>
-                            <p className="mt-1 font-extrabold">
-                              {meal.calories ?? "—"}
-                              <span className="ml-1 text-xs font-medium">
-                                kcal
-                              </span>
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-[#f4f4f0] p-3">
-                            <p className="text-xs font-semibold text-gray-500">
-                              Protein
-                            </p>
-                            <p className="mt-1 font-extrabold">
-                              {meal.protein ?? "—"}
-                              <span className="ml-1 text-xs font-medium">
-                                g
-                              </span>
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-[#f4f4f0] p-3">
-                            <p className="text-xs font-semibold text-gray-500">
-                              Carbs
-                            </p>
-                            <p className="mt-1 font-extrabold">
-                              {meal.carbs ?? "—"} g
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-[#f4f4f0] p-3">
-                            <p className="text-xs font-semibold text-gray-500">
-                              Fat
-                            </p>
-                            <p className="mt-1 font-extrabold">
-                              {meal.fat ?? "—"} g
-                            </p>
-                          </div>
-                        </div>
-
-                        {meal.notes && (
-                          <p className="mt-4 border-t border-dashed border-gray-300 pt-3 text-sm text-gray-600">
-                            {meal.notes}
-                          </p>
-                        )}
-                      </article>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No meals have been added to this plan yet.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="ns-card flex flex-col items-center px-6 py-12 text-center">
-                <div className="rounded-xl border-2 border-black bg-[#b8f2cf] p-4">
-                  <Salad size={30} />
-                </div>
-                <h4 className="mt-5 text-xl font-extrabold">
-                  Give your goals the right fuel
-                </h4>
-                <p className="mt-2 max-w-md text-sm text-gray-600">
-                  Generate a personalized meal plan to see your meals,
-                  calories, and macros here.
-                </p>
-              </div>
-            )}
-          </section>
+          {/* Nutrition plan section */}
+          <MealSection latestMealPlan={latestMealPlan} loadPlans={loadPlans} />
 
           <footer className="mt-12 flex flex-col justify-between gap-2 border-t-2 border-black/10 py-5 text-xs font-medium text-gray-500 sm:flex-row">
             <p>© {new Date().getFullYear()} NutriSculpt</p>

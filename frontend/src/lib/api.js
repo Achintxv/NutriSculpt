@@ -14,10 +14,18 @@ export async function apiFetch(endpoint, options = {}) {
     },
   });
 
-  const data = await response.json();
+  const text = await response.text();
+  let data = null;
+  
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (e) {
+    data = { detail: text };
+  }
 
   if (!response.ok) {
-    throw new Error(data.detail || "Something went wrong");
+    throw new Error(data?.detail || "Something went wrong");
   }
+
   return data;
 }
